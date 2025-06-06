@@ -33,106 +33,154 @@
 // 	the accumulator. once you have a list of just numbers, add 3 to all of them to account for the shift
 // 	cipher and convert them into characters according to the character map above. you should now have a 
 // 	decoded message.
-//
-// example board with the encoded message "DIGHERE!": 
-//
-//     A   B   C   D   E   F   G   H
-//   + - + - + - + - + - + - + - + - +
-// 1 | N |   | r | r |   |   | B | N | DIG
-//   + - + - + - + - + - + - + - + - +
-// 2 |   | b | n |   |   |   | n |   | HE
-//   + - + - + - + - + - + - + - + - +
-// 3 |   |   |   |   |   |   |   |   | 
-//   + - + - + - + - + - + - + - + - +
-// 4 |   |   |   |   |   | q | R |   | R
-//   + - + - + - + - + - + - + - + - +
-// 5 |   |   |   |   |   |   |   |   | E
-//   + - + - + - + - + - + - + - + - +
-// 6 |   |   |   |   |   |   |   |   |  
-//   + - + - + - + - + - + - + - + - +
-// 7 |   |   | q | Q | P | K |   |   | !
-//   + - + - + - + - + - + - + - + - +
-// 8 | k |   |   |   |   |   |   |   |
-//   + - + - + - + - + - + - + - + - +
-//
-// 	in FEN:
-// 		N1rr2BN/1bn3n1/8/5qR1/8/8/2qQPK2/k7
 
+#include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <ctype.h>
+#include <string.h>
 
-#define MAX_ENCRYPTION_SIZE 32
+#define MAX_MESSAGE_SIZE 24
 #define DEBUG_MODE 0
 
+// enum for piece values. Pawn = 1, Bishop = 2, Rook = 3, Knight = 4, Queen = 5, King = 6.
+typedef enum Pieces {
+	Pawn = 1,
+	Bishop,
+	Rook,
+	Knight,
+	Queen,
+	King,
+	None
+} Pieces;
+
+// struct for pieces. stores if it is white, and the piece type .
+typedef struct Piece {
+	bool is_white;
+	Pieces piece;
+} Piece;
+
+// checks if a character is a valid piece
 bool is_valid_piece(char piece) {
 	piece = toupper(piece);
-	bool is_valid_piece = false;
-	char valid_pieces[] = "PNBRQK";
-	for (int c=0;valid_pieces[c]!='\n';c++) {
-		if (piece==valid_pieces[c])
-			is_valid_piece = true;
+	return (strchr("PBRNQK", piece)!=NULL);
+}
+
+// get a piece, returns the piece struct. if the piece isnt a valid piece returns the following struct: Piece {None, false};
+Piece get_piece(char piece) {
+	struct Piece output;
+	if (is_valid_piece(piece)) { // continue if it is a valid piece
+		// check if it is a white piece
+		if (isupper(piece))
+			output.is_white = true;
+		else 
+			output.is_white = false;
+		// match character with piece enum
+		switch (toupper(piece)) {
+			case 'P': output.piece =   Pawn; break;
+			case 'B': output.piece = Bishop; break;
+			case 'R': output.piece =   Rook; break;
+			case 'N': output.piece = Knight; break;
+			case 'Q': output.piece =  Queen; break;
+			case 'K': output.piece =   King; break;
+			default : output.piece =   None; break;
+		}
+	} else {
+		output.piece = None;
+		output.is_white = false;
 	}
-	return is_valid_piece;
+	return output;
 }
 
-bool is_white_piece(char piece) {
-	return piece == toupper(piece);
-}
-
-int get_piece_value(char piece) {
-	piece = toupper(piece);
-	char pieces[] = "PBRNQK";
-
-	int i;
-
-	for(i=0;pieces[i]!='\0';i++) {
-		if (piece==pieces[i])
-			return i+1;
+// decode a board. writes to the inputted buffer
+void decode(char board[], char buf[MAX_MESSAGE_SIZE]) {
+	char character_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?.,ABC"; // character string to map accumulator to
+	int c,i; // c for character index of board, i for index of the position to write to in the buffer
+	int accumulator = 1; // accumulator
+	bool last_char_piece = false;
+	
+	for (c=0;board[c]!='\0';c++) { // loop through all the characters in the board string
+		Piece piece = get_piece(board[c]); // get the piece for the current character
+		if (piece.piece != None) { // check to see if the piece is a valid piece
+			if (DEBUG_MODE)
+				printf("%c is a %s piece, accumulator is %d, ", board[c], (piece.is_white) ? "white" : "black" , accumulator);
+			if (piece.piece == King) { // checks to see if the piece is a king
+				buf[i++] = character_map[accumulator-4]; // writes a character according to the character map, with a shift cipher
+				if (DEBUG_MODE)
+					printf("resetting accumulator and adding character %c to the output\n", character_map[accumulator-4]);
+				accumulator = 1; // resets the accumulator
+				buf[i] = '\n'; // adding null ending to the output
+				break; // stops the decoding proccess, because the message was fully decoded	
+			}
+			if (piece.is_white) { // checks to see if the piece is white
+				accumulator *= piece.piece; // multiplies the accumulator by the piece value
+				if (DEBUG_MODE)
+					printf("multiplying accumulator by %d\n", piece.piece);
+			} else { // checks to see if the piece is black
+				accumulator += piece.piece; // adds the piece value to the accumulator
+				if (DEBUG_MODE)
+					printf("adding %d to the accumulator\n", piece.piece);
+			}
+			last_char_piece = true; // sets last_char_piece to true
+		} else if((isdigit(board[c])) && last_char_piece) { // checks if the current character is an empty square and the last character was a piece
+			buf[i++] = character_map[accumulator-4]; // writes a character according to the character map, with a right shift cipher
+			if (DEBUG_MODE)
+				printf("resetting accumulator (%d) and adding character %c to the output\n", accumulator, character_map[accumulator-4]);
+			accumulator = 1; // resets the accumulator
+			last_char_piece = false; // sets last_char_piece to false
+		}
 	}
-
-	return -1;
 }
+
+bool test_is_valid_piece();
+bool test_isnt_valid_piece();
+bool test_get_piece();
+bool test_get_invalid_piece();
 
 int main(int argc, char *argv[]) {
-	char board[] = "N1rr2BN/1bn3n1/8/5qR1/8/8/2qQPK2/k7";
-	char character_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!?.,";
+	// 0        1         2         3
+	// 123456789012345678901234567890
+	// ?.,ABCDEFGHIJKLMNOPQRSTUVWXYZ!
+	//
+	//DIGHERE! = 7 12 10 11 8 21 8 30
+	//p = 1, b = 2, r = 3, n = 4, q = 5
+	//CAPITAL   = *
+	//lowercase = +
+	char board[] = "rr6/RN6/qn6/NBr5/qb6/rrR5/qb6/qQ5k"; //DIGHERE!
+	char output[MAX_MESSAGE_SIZE]; 
 
-	int c,i = 0;
-	int accumulator = 1;
-
-	char output[32];
-
-	for(c=0;board[c]!='\0';c++) { // loop through all the characters
-		printf("%c", board[c]);
-		if (is_valid_piece(board[c])) { // if it is a piece
-			printf(" is a piece");
-			if (get_piece_value(board[c])==6) { // if it is a king
-			 printf(", is a king\n");
-				output[i++] = character_map[accumulator];
-  			accumulator = 1;
-				output[i] = '\0';
-				break;
-			}
-			if (is_white_piece(board[c])) { // if it is a white piece
-				printf(", is white\n");
-				accumulator *= get_piece_value(board[c]);
-			} else { // if it is a black piece
-				printf(", is black\n");
-				accumulator += get_piece_value(board[c]);
-			}
-		} else if ('0' <= board[c] && board[c] <= '9') { // if it isnt a piece at all
-			printf(" isnt a piece\n");
-			output[i++] = character_map[accumulator];
-  		accumulator = 1;
-		}	
+	// tests
+	if (DEBUG_MODE) { 
+		assert(test_is_valid_piece());
+		assert(test_isnt_valid_piece());
+		assert(test_get_piece());
+		assert(test_get_invalid_piece());
 	}
 
-	if (DEBUG_MODE) {
-		printf("get_piece_value test: %s with %d as piece value\n",
-				(get_piece_value('p') == 6) ? "Passed" : "Failed", get_piece_value('k'));
-	}
+	if(argc > 1) 
+  	decode(argv[1], output);
+	else 
+		decode(board, output);
 
-	printf("decoded message:%s\n", output);
+	printf("decoded message: %s\n", output);
 	return 0;
+}
+
+// C unit test definitions
+bool test_is_valid_piece() {
+	return is_valid_piece('p') && is_valid_piece('P');
+}
+
+bool test_isnt_valid_piece() {
+	return !(is_valid_piece('/') || is_valid_piece('5'));
+}
+
+bool test_get_piece() {
+	struct Piece piece = get_piece('P');
+	return (piece.piece==Pawn && piece.is_white==true);
+}
+
+bool test_get_invalid_piece() {
+	struct Piece piece = get_piece('/');
+	return (piece.piece==None && piece.is_white==false);
 }
