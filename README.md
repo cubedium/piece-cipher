@@ -16,4 +16,6 @@ Step 3 - Ending a Message: To finish off a message, you have to put a king somew
 
 Do Steps 1-3 from the ENCODING section but in reverse
 
+### HOW TO USE:
+either install the binary from the release, or compile main.c
 
