@@ -41,7 +41,7 @@
 #include <string.h>
 
 #define MAX_MESSAGE_SIZE 24
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 // enum for piece values. Pawn = 1, Bishop = 2, Rook = 3, Knight = 4, Queen = 5, King = 6.
 typedef enum Pieces {
@@ -102,38 +102,42 @@ void decode(char board[], char buf[MAX_MESSAGE_SIZE]) {
 	for (c=0;board[c]!='\0';c++) { // loop through all the characters in the board string
 		Piece piece = get_piece(board[c]); // get the piece for the current character
 		if (piece.piece != None) { // check to see if the piece is a valid piece
-			printf("%c is a %s piece, accumulator is %d, ", board[c], (piece.is_white) ? "white" : "black" , accumulator);
+			if (DEBUG_MODE)
+				printf("%c is a %s piece, accumulator is %d, ", board[c], (piece.is_white) ? "white" : "black" , accumulator);
 			if (piece.piece == King) { // checks to see if the piece is a king
 				buf[i++] = character_map[accumulator-4]; // writes a character according to the character map, with a shift cipher
-				printf("resetting accumulator and adding character %c to the output\n", character_map[accumulator-4]);
+				if (DEBUG_MODE)
+					printf("resetting accumulator and adding character %c to the output\n", character_map[accumulator-4]);
 				accumulator = 1; // resets the accumulator
 				buf[i] = '\n'; // adding null ending to the output
 				break; // stops the decoding proccess, because the message was fully decoded	
 			}
 			if (piece.is_white) { // checks to see if the piece is white
 				accumulator *= piece.piece; // multiplies the accumulator by the piece value
-				printf("multiplying accumulator by %d\n", piece.piece);
+				if (DEBUG_MODE)
+					printf("multiplying accumulator by %d\n", piece.piece);
 			} else { // checks to see if the piece is black
 				accumulator += piece.piece; // adds the piece value to the accumulator
-				printf("adding %d to the accumulator\n", piece.piece);
+				if (DEBUG_MODE)
+					printf("adding %d to the accumulator\n", piece.piece);
 			}
 			last_char_piece = true; // sets last_char_piece to true
-		} else if(isdigit(board[c]) && last_char_piece) { // checks if the current character is an empty square and the last character was a piece
+		} else if((isdigit(board[c])) && last_char_piece) { // checks if the current character is an empty square and the last character was a piece
 			buf[i++] = character_map[accumulator-4]; // writes a character according to the character map, with a right shift cipher
-			printf("resetting accumulator (%d) and adding character %c to the output\n", accumulator, character_map[accumulator-4]);
+			if (DEBUG_MODE)
+				printf("resetting accumulator (%d) and adding character %c to the output\n", accumulator, character_map[accumulator-4]);
 			accumulator = 1; // resets the accumulator
 			last_char_piece = false; // sets last_char_piece to false
 		}
 	}
 }
 
-// C unit test declarations
 bool test_is_valid_piece();
 bool test_isnt_valid_piece();
 bool test_get_piece();
 bool test_get_invalid_piece();
 
-int main() { //int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 	// 0        1         2         3
 	// 123456789012345678901234567890
 	// ?.,ABCDEFGHIJKLMNOPQRSTUVWXYZ!
@@ -142,9 +146,10 @@ int main() { //int argc, char *argv[]) {
 	//p = 1, b = 2, r = 3, n = 4, q = 5
 	//CAPITAL   = *
 	//lowercase = +
-	char board[] = "rr1/RN1/qn1/NBr1/qb1/rrR1/qb1/qQ1/k1"; //DIGHERE!
+	char board[] = "rr6/RN6/qn6/NBr5/qb6/rrR5/qb6/qQ5k"; //DIGHERE!
 	char output[MAX_MESSAGE_SIZE]; 
-	
+
+	// tests
 	if (DEBUG_MODE) { 
 		assert(test_is_valid_piece());
 		assert(test_isnt_valid_piece());
@@ -152,7 +157,10 @@ int main() { //int argc, char *argv[]) {
 		assert(test_get_invalid_piece());
 	}
 
-	decode(board, output);
+	if(argc > 1) 
+  	decode(argv[1], output);
+	else 
+		decode(board, output);
 
 	printf("decoded message: %s\n", output);
 	return 0;

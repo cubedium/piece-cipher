@@ -2,7 +2,7 @@
 
 ### USEFUL INFORMATION:
 
-The piece cipher is a way to encode messages onto a chess board. The max size of the messages can be 24 characters long. The supported characters are: A-Z and basic punctuation (?!.,). 
+The piece cipher is a way to encode messages onto a chess board. The max size of the messages can be 24 characters long. The supported characters are: A-Z and basic punctuation (?!.,). The program supports FEN boards
 
 ### ENCODING: 
 
@@ -11,3 +11,9 @@ Step 1 - Character To Number Conversion: The first step to encoding a message is
 Step 2 - Number To Piece Conversion: The second step to encoding a message is converting the numbers into piece combinations. Each piece (aside from the king) has a value (Pawn = 1, Bishop = 2, Rook = 3, Knight = 4, Queen = 5). and each color of pieces has an action that it does with that value (Black = add value to counter, White = multiply counter by value). The counter has a base value of 1. Each piece modifies the counter in some way until an empty square shows up. This lets the decoder know that the current character has finished being calculated.
 
 Step 3 - Ending a Message: To finish off a message, you have to put a king somewhere after the encoded characters. This lets the decoder know that it should stop decoding the piece combinations.
+
+### DECODING:
+
+Do Steps 1-3 from the ENCODING section but in reverse
+
+
